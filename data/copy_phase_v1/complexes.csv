@@ -1,0 +1,10 @@
+name	strands	code
+G1	base1,y1	D21(U18+)
+G2	base2,y2	D21(U18+)
+G3	base3,w	D21(U18+)
+X	x	U18
+Y1	y1	U21
+Y2	y2	U21
+W	w	U21
+X1m	x1m	U18
+X2m	x2m	U18

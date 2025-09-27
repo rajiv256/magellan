@@ -1,0 +1,10 @@
+name	domains
+x	dx
+x1m	dx1m
+x2m	dx2m
+y1	dy1
+y2	dy2
+w	dw
+base1	~dy1,~dx
+base2	~dy2,~dx1m
+base3	~dw,~dx2m
