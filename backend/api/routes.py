@@ -1,6 +1,6 @@
 """
-API routes for OligoDesigner
-RESTful endpoints for sequence design and validation with orthogonal sets
+Simplified API routes for OligoDesigner
+Only handles individual sequences by length, no orthogonal sets
 """
 
 import json
@@ -12,7 +12,6 @@ from typing import Dict, List, Any, Optional
 from core.models import Domain, Strand, ValidationSettings, ValidationResult
 from core.generator import SequenceGenerator
 from core.validator import SequenceValidator
-from core.thermodynamics import ThermodynamicCalculator
 
 logger = logging.getLogger(__name__)
 
@@ -28,10 +27,13 @@ def create_routes(redis_client):
         """Health check endpoint"""
         try:
             redis_status = "connected"
-            cache_size = 0
+            total_sequences = 0
+
             if redis_client:
                 redis_client.ping()
-                cache_size = redis_client.dbsize()
+                # Count total sequences across all lengths
+                for length in range(7, 26):
+                    total_sequences += redis_client.scard(f"sequences:length:{length}")
         except Exception as e:
             redis_status = f"error: {str(e)}"
 
@@ -39,14 +41,14 @@ def create_routes(redis_client):
             'status': 'healthy',
             'service': 'oligodesigner',
             'redis': redis_status,
-            'cache_size': cache_size,
-            'version': '1.0.0',
+            'total_sequences': total_sequences,
+            'version': '2.0.0',
             'timestamp': datetime.now().isoformat()
         })
 
     @api_bp.route('/design/generate', methods=['POST'])
     def generate_design():
-        """Generate oligonucleotide design using orthogonal sets"""
+        """Generate oligonucleotide design using individual sequences by length"""
         try:
             data = request.json
             if not data:
@@ -77,21 +79,42 @@ def create_routes(redis_client):
                 )
                 domains.append(domain)
 
-            # Initialize generator and design sequences
+            # Check sequence availability for required lengths
             generator = SequenceGenerator(redis_client)
-            design_success = generator.design_domain_sequences(domains)
+            required_lengths = [d.length for d in domains if not d.isComplement and not d.sequence]
+            availability = generator.check_sequences_available(required_lengths)
 
-            if not design_success:
+            # Check if all required lengths are available
+            missing_lengths = [length for length, info in availability.items() if not info['available']]
+            if missing_lengths:
                 return jsonify({
-                    'error': 'Failed to design domain sequences',
-                    'details': 'No compatible orthogonal sets found or sequence generation failed'
+                    'error': 'Sequences not available for required lengths',
+                    'missing_lengths': missing_lengths,
+                    'availability': availability
                 }), 400
+
+            # Generate sequences for domains that don't have fixed sequences
+            domains_to_design = [d for d in domains if not d.sequence]
+            if domains_to_design:
+                design_success = generator.design_domain_sequences(domains_to_design)
+
+                if not design_success:
+                    return jsonify({
+                        'error': 'Failed to design domain sequences',
+                        'details': 'Sequence generation failed - may be cross-dimer conflicts'
+                    }), 400
 
             # Create strand objects and generate sequences
             strands = []
             for i, strand_data in enumerate(strands_data):
-                # Get domain IDs for this strand
+                # Get domain IDs for this strand - check multiple possible keys
                 domain_ids = strand_data.get('domains', [])
+                if not domain_ids:
+                    domain_ids = strand_data.get('domainIds', [])
+                if not domain_ids:
+                    domain_ids = strand_data.get('domain_ids', [])
+
+                logger.info(f"Strand {i}: domain_ids = {domain_ids}, strand_data = {strand_data}")
 
                 # Concatenate sequences from domains
                 strand_sequence = ""
@@ -99,6 +122,7 @@ def create_routes(redis_client):
                     domain = next((d for d in domains if d.id == domain_id), None)
                     if domain and domain.sequence:
                         strand_sequence += domain.sequence
+                        logger.info(f"Added domain {domain_id} sequence: {domain.sequence}")
 
                 strand = Strand(
                     id=strand_data.get('id', i),
@@ -108,6 +132,8 @@ def create_routes(redis_client):
                     validated=False
                 )
                 strands.append(strand)
+                logger.info(
+                    f"Created strand: {strand.name}, sequence: {strand.sequence}, domainIds: {strand.domainIds}")
 
             # Validate all sequences
             validator = SequenceValidator(settings)
@@ -118,8 +144,6 @@ def create_routes(redis_client):
                 if strand.sequence:
                     strand_validation = validator.validate_strand(strand, domains)
                     validation_results[strand.id] = strand_validation
-
-                    # Mark strand as validated
                     strand.validated = True
 
             # Validate cross-interactions between strands
@@ -128,15 +152,14 @@ def create_routes(redis_client):
             # Convert validation results to serializable format
             serialized_validation = {}
             for strand_id, results in validation_results.items():
-                serialized_validation[strand_id] = {
+                serialized_validation[str(strand_id)] = {
                     check_name: {
                         'passed': result.passed,
-                        'value': result.value,
-                        'threshold': result.threshold,
+                        'value': str(result.value),
+                        'threshold': str(result.threshold),
                         'details': result.details,
                         'check_type': getattr(result, 'check_type', check_name)
-                    }
-                    for check_name, result in results.items()
+                    } for check_name, result in results.items()
                 }
 
             # Convert cross-validation results
@@ -146,12 +169,11 @@ def create_routes(redis_client):
                 serialized_cross_validation[pair_key] = {
                     check_name: {
                         'passed': result.passed,
-                        'value': result.value,
-                        'threshold': result.threshold,
+                        'value': str(result.value),
+                        'threshold': str(result.threshold),
                         'details': result.details,
                         'check_type': getattr(result, 'check_type', check_name)
-                    }
-                    for check_name, result in results.items()
+                    } for check_name, result in results.items()
                 }
 
             # Create response
@@ -187,16 +209,8 @@ def create_routes(redis_client):
                     'generation_timestamp': datetime.now().isoformat(),
                     'total_domains': len(domains),
                     'total_strands': len(strands),
-                    'validation_settings': {
-                        'reactionTemp': settings.reactionTemp,
-                        'saltConc': settings.saltConc,
-                        'mgConc': settings.mgConc,
-                        'hairpinTm': settings.hairpinTm,
-                        'selfDimerTm': settings.selfDimerTm,
-                        'hybridizationTm': settings.hybridizationTm,
-                        'gcContentMin': settings.gcContentMin,
-                        'gcContentMax': settings.gcContentMax
-                    }
+                    'sequences_used': len(generator.used_sequences),
+                    'validation_settings': settings.__dict__
                 }
             }
 
@@ -206,52 +220,56 @@ def create_routes(redis_client):
             logger.error(f"Error in generate_design: {e}")
             return jsonify({'error': f'Design generation failed: {str(e)}'}), 500
 
-    @api_bp.route('/sets/available', methods=['GET'])
-    def get_available_sets():
-        """List all available orthogonal sets"""
+    @api_bp.route('/sequences/lengths', methods=['GET'])
+    def get_available_lengths():
+        """List all available lengths with sequence counts"""
         try:
             if not redis_client:
                 return jsonify({'error': 'Redis cache not available'}), 503
 
             generator = SequenceGenerator(redis_client)
-            available_sets = generator.list_available_sets()
+            available_lengths = generator.list_available_lengths()
 
             return jsonify({
                 'success': True,
-                'total_sets': len(available_sets),
-                'sets': available_sets
+                'total_lengths': len(available_lengths),
+                'available_lengths': available_lengths
             })
 
         except Exception as e:
-            logger.error(f"Error in get_available_sets: {e}")
-            return jsonify({'error': f'Failed to retrieve sets: {str(e)}'}), 500
+            logger.error(f"Error in get_available_lengths: {e}")
+            return jsonify({'error': f'Failed to retrieve lengths: {str(e)}'}), 500
 
-    @api_bp.route('/sets/<set_id>', methods=['GET'])
-    def get_set_details(set_id):
-        """Get detailed information about a specific orthogonal set"""
+    @api_bp.route('/sequences/length/<int:length>', methods=['GET'])
+    def get_length_details(length):
+        """Get detailed information about sequences for a specific length"""
         try:
             if not redis_client:
                 return jsonify({'error': 'Redis cache not available'}), 503
 
             generator = SequenceGenerator(redis_client)
-            set_info = generator.get_set_info(set_id)
+            length_info = generator.get_length_info(length)
 
-            if not set_info:
-                return jsonify({'error': f'Set {set_id} not found'}), 404
+            if not length_info:
+                return jsonify({'error': f'No sequences found for length {length}'}), 404
+
+            # Get detailed statistics
+            stats = generator.get_sequence_statistics(length)
 
             return jsonify({
                 'success': True,
-                'set_id': set_id,
-                'set_info': set_info
+                'length': length,
+                'info': length_info,
+                'statistics': stats
             })
 
         except Exception as e:
-            logger.error(f"Error in get_set_details: {e}")
-            return jsonify({'error': f'Failed to retrieve set details: {str(e)}'}), 500
+            logger.error(f"Error in get_length_details: {e}")
+            return jsonify({'error': f'Failed to retrieve length details: {str(e)}'}), 500
 
     @api_bp.route('/sequences/available', methods=['POST'])
     def get_available_sequences():
-        """Get available sequences for given domain specifications"""
+        """Check availability of sequences for given domain specifications"""
         try:
             data = request.json
             if not data or 'domains' not in data:
@@ -260,37 +278,33 @@ def create_routes(redis_client):
             domains_specs = data['domains']
             generator = SequenceGenerator(redis_client)
 
-            # Get required lengths from domain specifications
+            # Extract required lengths
             required_lengths = []
             for domain_spec in domains_specs:
                 length = domain_spec.get('length', 20)
                 if length not in required_lengths:
                     required_lengths.append(length)
 
-            # Find compatible orthogonal sets
-            compatible_sets = generator.get_compatible_sets(required_lengths)
+            # Check availability
+            availability = generator.check_sequences_available(required_lengths)
 
-            # Get sequences for each length from compatible sets
-            available_sequences = {}
-            for i, domain_spec in enumerate(domains_specs):
-                length = domain_spec.get('length', 20)
-                sequences = generator.get_sequences_for_domain(length)
-
-                available_sequences[f"domain_{i}"] = {
-                    'count': len(sequences),
-                    'specifications': domain_spec,
-                    'sequences': sequences[:5]  # Return first 5 as examples
-                }
+            # Get sample sequences for each length
+            samples = {}
+            for length in required_lengths:
+                if availability[length]['available']:
+                    sample_seqs = generator.get_sequences_from_redis(length, count=3)
+                    samples[length] = sample_seqs
 
             return jsonify({
                 'success': True,
-                'available_sequences': available_sequences,
-                'compatible_sets': list(compatible_sets.keys()),
-                'cache_status': 'connected' if redis_client else 'unavailable'
+                'required_lengths': required_lengths,
+                'availability': availability,
+                'samples': samples,
+                'all_available': all(info['available'] for info in availability.values())
             })
 
         except Exception as e:
-            logger.error(f"Error in get_available_sequences: {e}")
+            logger.error(f"Error in check_sequence_availability: {e}")
             return jsonify({'error': f'Internal server error: {str(e)}'}), 500
 
     @api_bp.route('/design/validate', methods=['POST'])
@@ -344,14 +358,7 @@ def create_routes(redis_client):
                 if strand.sequence:
                     strand_validation = validator.validate_strand(strand, domains)
                     validation_results[strand.id] = {
-                        check_name: {
-                            'passed': result.passed,
-                            'value': result.value,
-                            'threshold': result.threshold,
-                            'details': result.details,
-                            'check_type': getattr(result, 'check_type', check_name)
-                        }
-                        for check_name, result in strand_validation.items()
+                        check_name: result.to_dict() for check_name, result in strand_validation.items()
                     }
 
             # Validate cross-interactions
@@ -360,14 +367,7 @@ def create_routes(redis_client):
             for (strand1_id, strand2_id), results in cross_validation.items():
                 pair_key = f"{strand1_id}_{strand2_id}"
                 cross_results[pair_key] = {
-                    check_name: {
-                        'passed': result.passed,
-                        'value': result.value,
-                        'threshold': result.threshold,
-                        'details': result.details,
-                        'check_type': getattr(result, 'check_type', check_name)
-                    }
-                    for check_name, result in results.items()
+                    check_name: result.to_dict() for check_name, result in results.items()
                 }
 
             return jsonify({
@@ -383,6 +383,26 @@ def create_routes(redis_client):
             logger.error(f"Error in validate_design: {e}")
             return jsonify({'error': f'Validation failed: {str(e)}'}), 500
 
+    @api_bp.route('/database/stats', methods=['GET'])
+    def get_database_stats():
+        """Get Redis database statistics"""
+        try:
+            if not redis_client:
+                return jsonify({'error': 'Redis cache not available'}), 503
+
+            generator = SequenceGenerator(redis_client)
+            stats = generator.get_database_stats()
+
+            return jsonify({
+                'success': True,
+                'stats': stats,
+                'timestamp': datetime.now().isoformat()
+            })
+
+        except Exception as e:
+            logger.error(f"Error in get_database_stats: {e}")
+            return jsonify({'error': f'Failed to retrieve stats: {str(e)}'}), 500
+
     @api_bp.route('/cache/status', methods=['GET'])
     def cache_status():
         """Get Redis cache status and statistics"""
@@ -393,15 +413,29 @@ def create_routes(redis_client):
                     'error': 'Redis not available'
                 })
 
-            # Get cache statistics
+            # Test connection
+            redis_client.ping()
+
+            # Count sequence keys and total sequences
+            sequence_keys = 0
+            total_sequences = 0
+
+            for length in range(7, 26):
+                key = f"sequences:length:{length}"
+                if redis_client.exists(key):
+                    sequence_keys += 1
+                    total_sequences += redis_client.scard(key)
+
+            # Get Redis info
             info = redis_client.info()
+
             stats = {
                 'connected': True,
                 'total_keys': redis_client.dbsize(),
+                'sequence_keys': sequence_keys,
+                'total_sequences': total_sequences,
                 'memory_usage': info.get('used_memory_human', 'unknown'),
                 'uptime': info.get('uptime_in_seconds', 0),
-                'orthogonal_sets': len(redis_client.keys("orthogonal_set:*")),
-                'sequence_keys': len(redis_client.keys("sequences:*")),
                 'last_updated': datetime.now().isoformat()
             }
 

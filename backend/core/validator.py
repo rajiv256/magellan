@@ -1,6 +1,5 @@
 """
-Sequence validator for oligonucleotide design
-Comprehensive validation of sequences against design criteria
+Updated sequence validator matching frontend settings structure
 """
 
 import logging
@@ -19,9 +18,7 @@ class SequenceValidator:
         self.calculator = ThermodynamicCalculator(settings)
 
     def validate_domain(self, domain: Domain) -> Dict[str, ValidationResult]:
-        """
-        Validate a single domain against all criteria
-        """
+        """Validate a single domain against all criteria"""
         if not domain.sequence or domain.sequence == "":
             return self._create_empty_validation_results()
 
@@ -33,7 +30,7 @@ class SequenceValidator:
         # 2. GC content validation
         results['gcContent'] = self._validate_gc_content(domain.sequence)
 
-        # 3. Melting temperature validation
+        # 3. Melting temperature validation (range check)
         results['meltingTemp'] = self._validate_melting_temperature(domain.sequence)
 
         # 4. Hairpin formation validation
@@ -54,9 +51,7 @@ class SequenceValidator:
         return results
 
     def validate_strand(self, strand: Strand, domains: List[Domain] = None) -> Dict[str, ValidationResult]:
-        """
-        Validate a complete strand (may be composed of multiple domains)
-        """
+        """Validate a complete strand"""
         if not strand.sequence or strand.sequence == "":
             return self._create_empty_validation_results()
 
@@ -84,9 +79,7 @@ class SequenceValidator:
         return results
 
     def validate_cross_interactions(self, strands: List[Strand]) -> Dict[Tuple[int, int], Dict[str, ValidationResult]]:
-        """
-        Validate cross-interactions between different strands
-        """
+        """Validate cross-interactions between different strands"""
         cross_results = {}
 
         for i, strand1 in enumerate(strands):
@@ -114,38 +107,38 @@ class SequenceValidator:
     def _validate_gc_content(self, sequence: str) -> ValidationResult:
         """Validate GC content within acceptable range"""
         gc_content = self.calculator.calculate_gc_content(sequence)
-        passed = self.settings.gc_content_min <= gc_content <= self.settings.gc_content_max
+        passed = self.settings.gcContentMin <= gc_content <= self.settings.gcContentMax
 
         return ValidationResult(
             passed=passed,
             value=f"{gc_content:.1f}%",
-            threshold=f"{self.settings.gc_content_min}-{self.settings.gc_content_max}%",
+            threshold=f"{self.settings.gcContentMin}-{self.settings.gcContentMax}%",
             details=f"GC content: {gc_content:.1f}%",
             check_type="gc_content"
         )
 
     def _validate_melting_temperature(self, sequence: str) -> ValidationResult:
-        """Validate melting temperature is appropriate for hybridization"""
+        """Validate melting temperature is within hybridization range"""
         tm = self.calculator.calculate_melting_temperature(sequence)
-        passed = tm >= self.settings.hybridization_tm
+        passed = self.settings.hybridizationTmMin <= tm <= self.settings.hybridizationTmMax
 
         return ValidationResult(
             passed=passed,
             value=f"{tm:.1f}°C",
-            threshold=f">={self.settings.hybridization_tm}°C",
-            details=f"Melting temperature: {tm:.1f}°C",
+            threshold=f"{self.settings.hybridizationTmMin}-{self.settings.hybridizationTmMax}°C",
+            details=f"Melting temperature: {tm:.1f}°C (range: {self.settings.hybridizationTmMin}-{self.settings.hybridizationTmMax}°C)",
             check_type="melting_temp"
         )
 
     def _validate_hairpin_formation(self, sequence: str) -> ValidationResult:
         """Validate hairpin formation temperature is acceptable"""
         hairpin_tm = self.calculator.calculate_hairpin_tm(sequence)
-        passed = hairpin_tm <= self.settings.hairpin_tm
+        passed = hairpin_tm <= self.settings.hairpinTm
 
         return ValidationResult(
             passed=passed,
             value=f"{hairpin_tm:.1f}°C",
-            threshold=f"<={self.settings.hairpin_tm}°C",
+            threshold=f"<={self.settings.hairpinTm}°C",
             details=f"Hairpin Tm: {hairpin_tm:.1f}°C",
             check_type="hairpin"
         )
@@ -153,12 +146,12 @@ class SequenceValidator:
     def _validate_self_dimer(self, sequence: str) -> ValidationResult:
         """Validate self-dimer formation temperature"""
         self_dimer_tm = self.calculator.calculate_self_dimer_tm(sequence)
-        passed = self_dimer_tm <= self.settings.self_dimer_tm
+        passed = self_dimer_tm <= self.settings.selfDimerTm
 
         return ValidationResult(
             passed=passed,
             value=f"{self_dimer_tm:.1f}°C",
-            threshold=f"<={self.settings.self_dimer_tm}°C",
+            threshold=f"<={self.settings.selfDimerTm}°C",
             details=f"Self-dimer Tm: {self_dimer_tm:.1f}°C",
             check_type="self_dimer"
         )
@@ -184,24 +177,24 @@ class SequenceValidator:
 
         # 3' hairpin check
         three_prime_hairpin_tm = self.calculator.calculate_three_prime_hairpin_tm(
-            sequence, self.settings.three_prime_length
+            sequence, self.settings.threePrimeLength
         )
         results['threePrimeHairpin'] = ValidationResult(
-            passed=three_prime_hairpin_tm <= self.settings.three_prime_hairpin_tm,
+            passed=three_prime_hairpin_tm <= self.settings.threePrimeHairpinTm,
             value=f"{three_prime_hairpin_tm:.1f}°C",
-            threshold=f"<={self.settings.three_prime_hairpin_tm}°C",
+            threshold=f"<={self.settings.threePrimeHairpinTm}°C",
             details=f"3' hairpin Tm: {three_prime_hairpin_tm:.1f}°C",
             check_type="three_prime_hairpin"
         )
 
         # 3' self-dimer check
         three_prime_self_dimer_tm = self.calculator.calculate_three_prime_self_dimer_tm(
-            sequence, self.settings.three_prime_length
+            sequence, self.settings.threePrimeLength
         )
         results['threePrimeSelfDimer'] = ValidationResult(
-            passed=three_prime_self_dimer_tm <= self.settings.three_prime_self_dimer_tm,
+            passed=three_prime_self_dimer_tm <= self.settings.threePrimeSelfDimerTm,
             value=f"{three_prime_self_dimer_tm:.1f}°C",
-            threshold=f"<={self.settings.three_prime_self_dimer_tm}°C",
+            threshold=f"<={self.settings.threePrimeSelfDimerTm}°C",
             details=f"3' self-dimer Tm: {three_prime_self_dimer_tm:.1f}°C",
             check_type="three_prime_self_dimer"
         )
@@ -232,7 +225,7 @@ class SequenceValidator:
                 check_type="strand_length"
             )
 
-        expected_length = sum(d.length for d in domains if d.id in strand.domain_ids)
+        expected_length = sum(d.length for d in domains if d.id in strand.domainIds)
         actual_length = len(strand.sequence)
         passed = actual_length == expected_length
 
@@ -252,7 +245,7 @@ class SequenceValidator:
         domain_dict = {d.id: d for d in domains}
         expected_sequences = []
 
-        for domain_id in strand.domain_ids:
+        for domain_id in strand.domainIds:
             if domain_id in domain_dict:
                 domain = domain_dict[domain_id]
                 if domain.sequence:
@@ -274,29 +267,29 @@ class SequenceValidator:
         return results
 
     def _validate_strand_pair(self, strand1: Strand, strand2: Strand) -> Dict[str, ValidationResult]:
-        """Validate interactions between two strands"""
+        """Validate interactions between two strands using updated settings"""
         results = {}
 
-        # Cross-dimer formation
-        cross_dimer_tm = self.calculator.calculate_cross_dimer_tm(strand1.sequence, strand2.sequence)
-        results['crossDimer'] = ValidationResult(
-            passed=cross_dimer_tm <= self.settings.self_dimer_tm,
-            value=f"{cross_dimer_tm:.1f}°C",
-            threshold=f"<={self.settings.self_dimer_tm}°C",
-            details=f"Cross-dimer Tm between {strand1.name} and {strand2.name}: {cross_dimer_tm:.1f}°C",
-            check_type="cross_dimer"
+        # Cross-dimer ΔG check (using crossDimerDgMin)
+        cross_dimer_dg = self.calculator.calculate_cross_dimer_delta_g(strand1.sequence, strand2.sequence)
+        results['crossDimerDg'] = ValidationResult(
+            passed=cross_dimer_dg >= self.settings.crossDimerDgMin,
+            value=f"{cross_dimer_dg:.2f} kcal/mol",
+            threshold=f">={self.settings.crossDimerDgMin} kcal/mol",
+            details=f"Cross-dimer ΔG between {strand1.name} and {strand2.name}: {cross_dimer_dg:.2f} kcal/mol",
+            check_type="cross_dimer_dg"
         )
 
-        # 3' cross-dimer (more stringent)
-        three_prime_cross_tm = self.calculator.calculate_three_prime_cross_dimer_tm(
-            strand1.sequence, strand2.sequence, self.settings.three_prime_length
+        # 3' cross-dimer ΔG check (using threePrimeCrossDimerDgMin)
+        three_prime_cross_dg = self.calculator.calculate_three_prime_cross_dimer_delta_g(
+            strand1.sequence, strand2.sequence, self.settings.threePrimeLength
         )
-        results['threePrimeCrossDimer'] = ValidationResult(
-            passed=three_prime_cross_tm <= self.settings.three_prime_cross_dimer_tm,
-            value=f"{three_prime_cross_tm:.1f}°C",
-            threshold=f"<={self.settings.three_prime_cross_dimer_tm}°C",
-            details=f"3' cross-dimer Tm: {three_prime_cross_tm:.1f}°C",
-            check_type="three_prime_cross_dimer"
+        results['threePrimeCrossDimerDg'] = ValidationResult(
+            passed=three_prime_cross_dg >= self.settings.threePrimeCrossDimerDgMin,
+            value=f"{three_prime_cross_dg:.2f} kcal/mol",
+            threshold=f">={self.settings.threePrimeCrossDimerDgMin} kcal/mol",
+            details=f"3' cross-dimer ΔG: {three_prime_cross_dg:.2f} kcal/mol",
+            check_type="three_prime_cross_dimer_dg"
         )
 
         return results
@@ -357,7 +350,7 @@ class SequenceValidator:
 
         for check_name, result in results.items():
             if not result.passed:
-                if check_name in ['threePrimeHairpin', 'threePrimeSelfDimer', 'threePrimeCrossDimer']:
+                if check_name in ['threePrimeHairpin', 'threePrimeSelfDimer', 'threePrimeCrossDimerDg']:
                     critical_failures.append(check_name)
                 else:
                     warnings.append(check_name)

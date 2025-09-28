@@ -1,5 +1,6 @@
 """
-Enhanced sequence generator for orthogonal oligo sets
+Overhauled sequence generator - simplified for length-based Redis storage only
+No orthogonal sets, just individual sequences by length
 """
 
 import json
@@ -15,134 +16,128 @@ class SequenceGenerator:
         self.redis = redis_client
         self.used_sequences = set()
 
-    def get_compatible_sets(self, required_lengths: List[int]) -> Dict[str, Dict]:
-        """Find orthogonal sets that contain all required lengths"""
+    def has_complement_domains(self, domains: List) -> bool:
+        """Check if any domains have complement relationships"""
+        for domain in domains:
+            if hasattr(domain, 'isComplement') and domain.isComplement:
+                return True
+            if hasattr(domain, 'complementOf') and domain.complementOf is not None:
+                return True
+        return False
+
+    def get_sequences_from_redis(self, length: int, count: int = 1, exclude: Set[str] = None) -> List[str]:
+        """Sample sequences from Redis for a given length"""
         try:
-            # Get all orthogonal set keys
-            set_keys = self.redis.keys("orthogonal_set:*")
-            compatible_sets = {}
-
-            logger.info(f"Checking {len(set_keys)} orthogonal sets for lengths: {required_lengths}")
-
-            for set_key in set_keys:
-                try:
-                    # Get set metadata
-                    set_data = self.redis.get(set_key)
-                    if not set_data:
-                        continue
-
-                    oligo_set = json.loads(set_data)
-
-                    # Check if this set contains all required lengths
-                    available_lengths = set(oligo_set.get('lengths', []))
-                    required_lengths_set = set(required_lengths)
-
-                    if required_lengths_set.issubset(available_lengths):
-                        set_id = set_key.split(':')[1]  # Extract set ID
-                        compatible_sets[set_id] = oligo_set
-                        logger.debug(f"Set {set_id} is compatible: has lengths {sorted(available_lengths)}")
-                    else:
-                        missing = required_lengths_set - available_lengths
-                        logger.debug(f"Set {set_key} missing lengths: {missing}")
-
-                except Exception as e:
-                    logger.error(f"Error processing set {set_key}: {e}")
-
-            logger.info(f"Found {len(compatible_sets)} compatible orthogonal sets")
-            return compatible_sets
-
-        except Exception as e:
-            logger.error(f"Error finding compatible sets: {e}")
-            return {}
-
-    def select_optimal_set(self, compatible_sets: Dict[str, Dict], required_lengths: List[int]) -> Optional[Dict]:
-        """Select the best orthogonal set (currently random, scoring later)"""
-        if not compatible_sets:
-            logger.warning("No compatible orthogonal sets found")
-            return None
-
-        # For now: random selection
-        # TODO: Implement scoring based on:
-        # - Set quality/orthogonality score
-        # - GC content distribution
-        # - Thermodynamic properties
-        # - Set completeness (extra lengths available)
-
-        set_id = random.choice(list(compatible_sets.keys()))
-        selected_set = compatible_sets[set_id]
-
-        logger.info(f"Selected orthogonal set: {set_id} (random selection)")
-        logger.debug(f"Set contains lengths: {sorted(selected_set.get('lengths', []))}")
-
-        return selected_set
-
-    def get_sequences_from_set(self, oligo_set: Dict, length: int, count: int = 1) -> List[str]:
-        """Get sequences of specific length from an orthogonal set"""
-        try:
-            sequences_by_length = oligo_set.get('sequences', {})
-            available_sequences = sequences_by_length.get(str(length), [])
+            redis_key = f"sequences:length:{length}"
+            available_sequences = list(self.redis.smembers(redis_key))
 
             if not available_sequences:
-                logger.warning(f"No sequences of length {length} in selected set")
+                logger.warning(f"No sequences found in Redis for length {length}")
                 return []
 
-            # Filter out already used sequences
-            unused_sequences = [seq for seq in available_sequences if seq not in self.used_sequences]
+            # Filter out excluded sequences
+            if exclude:
+                available_sequences = [seq for seq in available_sequences if seq not in exclude]
 
-            if not unused_sequences:
-                logger.warning(f"All sequences of length {length} already used, reusing...")
-                unused_sequences = available_sequences
+            if not available_sequences:
+                logger.warning(f"All sequences for length {length} are excluded")
+                return []
 
-            # Select requested number of sequences
-            selected = random.sample(unused_sequences, min(count, len(unused_sequences)))
+            # Sample randomly
+            sample_count = min(count, len(available_sequences))
+            selected = random.sample(available_sequences, sample_count)
 
-            # Mark as used
-            self.used_sequences.update(selected)
-
-            logger.debug(f"Selected {len(selected)} sequences of length {length}")
+            logger.debug(
+                f"Sampled {len(selected)} sequences from {len(available_sequences)} available for length {length}")
             return selected
 
         except Exception as e:
-            logger.error(f"Error getting sequences from set: {e}")
+            logger.error(f"Error sampling sequences from Redis for length {length}: {e}")
             return []
 
-    def design_domain_sequences(self, domains: List) -> bool:
-        """Design sequences for domains using orthogonal sets"""
+    def get_all_sequences_for_length(self, length: int) -> List[str]:
+        """Get all available sequences for a specific length from Redis"""
         try:
-            # Get all required lengths
-            required_lengths = []
-            forward_domains = [d for d in domains if not d.isComplement]
+            redis_key = f"sequences:length:{length}"
+            sequences = list(self.redis.smembers(redis_key))
+
+            if not sequences:
+                logger.warning(f"No sequences found in Redis for length {length}")
+                return []
+
+            logger.debug(f"Found {len(sequences)} sequences for length {length}")
+            return sequences
+
+        except Exception as e:
+            logger.error(f"Error getting sequences for length {length}: {e}")
+            return []
+
+    def check_cross_dimer_interactions(self, new_sequence: str, existing_sequences: List[str]) -> tuple[bool, str]:
+        """Check cross-dimer interactions using ΔG values"""
+        try:
+            from thermodynamics import ThermodynamicCalculator
+            from models import ValidationSettings
+
+            settings = ValidationSettings()
+            calculator = ThermodynamicCalculator(settings)
+
+            for existing_seq in existing_sequences:
+                # Full sequence cross-dimer ΔG check (≥ -5.0 kcal/mol)
+                cross_dimer_dg = calculator.calculate_cross_dimer_delta_g(new_sequence, existing_seq)
+                if cross_dimer_dg < settings.crossDimerDgMin:
+                    return False, f"Cross-dimer ΔG {cross_dimer_dg:.2f} kcal/mol too negative with {existing_seq[:10]}..."
+
+                # 3' end cross-dimer ΔG check (≥ -2.0 kcal/mol)
+                three_prime_cross_dg = calculator.calculate_three_prime_cross_dimer_delta_g(
+                    new_sequence, existing_seq, settings.threePrimeLength
+                )
+                if three_prime_cross_dg < settings.threePrimeCrossDimerDgMin:
+                    return False, f"3' cross-dimer ΔG {three_prime_cross_dg:.2f} kcal/mol too negative"
+
+            return True, "No problematic cross-interactions"
+
+        except Exception as e:
+            logger.error(f"Error in cross-dimer validation: {e}")
+            return False, f"Cross-dimer validation error: {e}"
+
+    def design_domain_sequences(self, domains: List) -> bool:
+        """Design sequences for domains using individual sequence selection from Redis"""
+        try:
+            # Check if we have complement domains
+            has_complements = self.has_complement_domains(domains)
+
+            if has_complements:
+                logger.info("Complement domains detected - skipping cross-dimer checks")
+                return self._design_with_complements(domains)
+            else:
+                logger.info("No complement domains - performing full cross-dimer validation")
+                return self._design_with_cross_validation(domains)
+
+        except Exception as e:
+            logger.error(f"Error in domain sequence design: {e}")
+            return False
+
+    def _design_with_complements(self, domains: List) -> bool:
+        """Design sequences when complement domains are present (no cross-dimer checks)"""
+        try:
+            # Get forward domains only
+            forward_domains = [d for d in domains if not getattr(d, 'isComplement', False)]
 
             for domain in forward_domains:
-                if domain.length not in required_lengths:
-                    required_lengths.append(domain.length)
-
-            logger.info(f"Required lengths for design: {required_lengths}")
-
-            # Find compatible orthogonal sets
-            compatible_sets = self.get_compatible_sets(required_lengths)
-
-            if not compatible_sets:
-                logger.error("No compatible orthogonal sets found")
-                return False
-
-            # Select optimal set
-            selected_set = self.select_optimal_set(compatible_sets, required_lengths)
-
-            if not selected_set:
-                logger.error("Failed to select orthogonal set")
-                return False
-
-            # Assign sequences from the selected set
-            for domain in forward_domains:
-                sequences = self.get_sequences_from_set(selected_set, domain.length, 1)
+                # Sample sequence from Redis
+                sequences = self.get_sequences_from_redis(
+                    domain.length,
+                    count=1,
+                    exclude=self.used_sequences
+                )
 
                 if sequences:
                     domain.sequence = sequences[0]
+                    self.used_sequences.add(sequences[0])
                     logger.info(f"Assigned sequence to domain {domain.name}: {domain.sequence}")
 
                     # Update complement domain
-                    complement = next((d for d in domains if d.complementOf == domain.id), None)
+                    complement = next((d for d in domains if getattr(d, 'complementOf', None) == domain.id), None)
                     if complement:
                         complement.sequence = self._reverse_complement(domain.sequence)
                         logger.debug(f"Generated complement for {domain.name}*: {complement.sequence}")
@@ -153,84 +148,226 @@ class SequenceGenerator:
             return True
 
         except Exception as e:
-            logger.error(f"Error in domain sequence design: {e}")
+            logger.error(f"Error in complement-based design: {e}")
             return False
 
-    def get_set_info(self, set_id: str) -> Optional[Dict]:
-        """Get information about a specific orthogonal set"""
+    def _design_with_cross_validation(self, domains: List) -> bool:
+        """Design sequences with full cross-dimer validation"""
         try:
-            set_key = f"orthogonal_set:{set_id}"
-            set_data = self.redis.get(set_key)
+            assigned_sequences = []
 
-            if set_data:
-                return json.loads(set_data)
-            return None
+            for domain in domains:
+                max_attempts = 50  # Increased attempts since we're not using orthogonal sets
+                sequence_found = False
+
+                for attempt in range(max_attempts):
+                    # Sample a sequence from Redis
+                    sequences = self.get_sequences_from_redis(
+                        domain.length,
+                        count=1,
+                        exclude=self.used_sequences
+                    )
+
+                    if not sequences:
+                        logger.error(f"No available sequences for domain {domain.name} (length {domain.length})")
+                        break
+
+                    candidate_sequence = sequences[0]
+
+                    # Check cross-interactions with previously assigned sequences
+                    if assigned_sequences:
+                        is_valid, reason = self.check_cross_dimer_interactions(candidate_sequence, assigned_sequences)
+                        if not is_valid:
+                            logger.debug(f"Sequence rejected for {domain.name}: {reason}")
+                            self.used_sequences.add(candidate_sequence)  # Mark as used to avoid retrying
+                            continue
+
+                    # Sequence is valid
+                    domain.sequence = candidate_sequence
+                    assigned_sequences.append(candidate_sequence)
+                    self.used_sequences.add(candidate_sequence)
+                    sequence_found = True
+
+                    logger.info(f"Assigned sequence to domain {domain.name}: {domain.sequence}")
+                    break
+
+                if not sequence_found:
+                    logger.error(
+                        f"Failed to find valid sequence for domain {domain.name} after {max_attempts} attempts")
+                    return False
+
+            return True
 
         except Exception as e:
-            logger.error(f"Error getting set info: {e}")
-            return None
-
-    def list_available_sets(self) -> Dict[str, Dict]:
-        """List all available orthogonal sets with their metadata"""
-        try:
-            set_keys = self.redis.keys("orthogonal_set:*")
-            available_sets = {}
-
-            for set_key in set_keys:
-                set_id = set_key.split(':')[1]
-                set_info = self.get_set_info(set_id)
-
-                if set_info:
-                    # Extract summary info
-                    available_sets[set_id] = {
-                        'lengths': sorted(set_info.get('lengths', [])),
-                        'total_sequences': sum(len(seqs) for seqs in set_info.get('sequences', {}).values()),
-                        'quality_score': set_info.get('quality_score', 0.0),
-                        'created_at': set_info.get('created_at', 'unknown')
-                    }
-
-            return available_sets
-
-        except Exception as e:
-            logger.error(f"Error listing available sets: {e}")
-            return {}
+            logger.error(f"Error in cross-validation design: {e}")
+            return False
 
     def _reverse_complement(self, sequence: str) -> str:
         """Generate reverse complement"""
         complement = {'A': 'T', 'T': 'A', 'G': 'C', 'C': 'G', 'N': 'N'}
         return ''.join(complement.get(base.upper(), base) for base in sequence[::-1])
 
-    # Legacy methods for backward compatibility
-    def get_sequences_for_domain(self, length: int) -> List[str]:
-        """Legacy method - get sequences for a specific length"""
-        # Try to find any set with this length
-        compatible_sets = self.get_compatible_sets([length])
+    def get_length_info(self, length: int) -> Optional[Dict]:
+        """Get information about sequences for a specific length"""
+        try:
+            redis_key = f"sequences:length:{length}"
+            metadata_key = f"sequences:length:{length}:metadata"
 
-        if compatible_sets:
-            set_id = random.choice(list(compatible_sets.keys()))
-            selected_set = compatible_sets[set_id]
-            return self.get_sequences_from_set(selected_set, length, count=10)
+            count = self.redis.scard(redis_key)
+            metadata_raw = self.redis.get(metadata_key)
 
-        logger.warning(f"No orthogonal sets found for length {length}")
-        return []
+            if count == 0:
+                return None
 
-    def select_unused_sequence(self, sequences: List[str]) -> str:
-        """Legacy method - select unused sequence"""
-        if not sequences:
-            return self._generate_fallback_sequence(20)
+            return {
+                'type': 'length_set',
+                'length': length,
+                'total_sequences': count,
+                'metadata': json.loads(metadata_raw) if metadata_raw else {},
+                'sample_sequences': list(self.redis.srandmember(redis_key, 5)),  # 5 random samples
+                'redis_key': redis_key
+            }
 
-        unused = [seq for seq in sequences if seq not in self.used_sequences]
+        except Exception as e:
+            logger.error(f"Error getting info for length {length}: {e}")
+            return None
 
-        if unused:
-            selected = random.choice(unused)
-        else:
-            selected = random.choice(sequences)
-            logger.warning("Reusing sequence")
+    def list_available_lengths(self) -> Dict[str, Dict]:
+        """List all available lengths with their sequence counts"""
+        try:
+            available_lengths = {}
 
-        self.used_sequences.add(selected)
-        return selected
+            # Check lengths 7-25
+            for length in range(7, 26):
+                length_info = self.get_length_info(length)
+                if length_info:
+                    available_lengths[str(length)] = length_info
 
-    def _generate_fallback_sequence(self, length: int) -> str:
-        """Generate simple fallback sequence"""
-        bases = ['A', 'T', 'G', 'C']
-        return ''.join(random.choice(bases) for _ in range(length))
+            return available_lengths
+
+        except Exception as e:
+            logger.error(f"Error listing available lengths: {e}")
+            return {}
+
+    def get_database_stats(self) -> Dict[str, any]:
+        """Get comprehensive database statistics"""
+        try:
+            stats = {
+                'individual_lengths': {},
+                'total_sequences': 0,
+                'available_lengths': []
+            }
+
+            # Count sequences by length
+            for length in range(7, 26):
+                redis_key = f"sequences:length:{length}"
+                count = self.redis.scard(redis_key)
+                if count > 0:
+                    stats['individual_lengths'][length] = count
+                    stats['total_sequences'] += count
+                    stats['available_lengths'].append(length)
+
+            # Redis memory info
+            try:
+                redis_info = self.redis.info()
+                stats['redis_memory'] = redis_info.get('used_memory_human', 'unknown')
+                stats['redis_keys'] = redis_info.get('db0', {}).get('keys', 0)
+            except:
+                stats['redis_memory'] = 'unknown'
+                stats['redis_keys'] = 0
+
+            return stats
+
+        except Exception as e:
+            logger.error(f"Error getting database stats: {e}")
+            return {}
+
+    def check_sequences_available(self, required_lengths: List[int]) -> Dict[int, Dict]:
+        """Check if sequences are available for all required lengths"""
+        try:
+            availability = {}
+
+            for length in required_lengths:
+                redis_key = f"sequences:length:{length}"
+                count = self.redis.scard(redis_key)
+
+                availability[length] = {
+                    'available': count > 0,
+                    'count': count,
+                    'redis_key': redis_key
+                }
+
+            return availability
+
+        except Exception as e:
+            logger.error(f"Error checking sequence availability: {e}")
+            return {}
+
+    def reload_sequences(self) -> bool:
+        """Check Redis connection and available sequences"""
+        try:
+            if not self.redis:
+                return False
+
+            # Test Redis connection
+            self.redis.ping()
+
+            # Count total sequences
+            total_sequences = 0
+            available_lengths = 0
+
+            for length in range(7, 26):
+                count = self.redis.scard(f"sequences:length:{length}")
+                if count > 0:
+                    total_sequences += count
+                    available_lengths += 1
+
+            logger.info(f"Redis connection OK - {total_sequences} sequences across {available_lengths} lengths")
+            return total_sequences > 0
+
+        except Exception as e:
+            logger.error(f"Error checking Redis: {e}")
+            return False
+
+    def clear_used_sequences(self):
+        """Clear the set of used sequences for a new design session"""
+        self.used_sequences.clear()
+        logger.info("Cleared used sequences")
+
+    def get_sequence_statistics(self, length: int) -> Dict[str, any]:
+        """Get detailed statistics for sequences of a specific length"""
+        try:
+            sequences = self.get_all_sequences_for_length(length)
+
+            if not sequences:
+                return {'length': length, 'count': 0, 'statistics': None}
+
+            # Calculate basic statistics
+            total_sequences = len(sequences)
+            avg_gc_content = sum(self._calculate_gc_content(seq) for seq in sequences) / total_sequences
+
+            # GC content distribution
+            gc_contents = [self._calculate_gc_content(seq) for seq in sequences]
+            gc_min = min(gc_contents)
+            gc_max = max(gc_contents)
+
+            return {
+                'length': length,
+                'count': total_sequences,
+                'statistics': {
+                    'avg_gc_content': round(avg_gc_content, 2),
+                    'gc_content_range': [round(gc_min, 2), round(gc_max, 2)],
+                    'sample_sequences': sequences[:3]  # First 3 as examples
+                }
+            }
+
+        except Exception as e:
+            logger.error(f"Error getting statistics for length {length}: {e}")
+            return {'length': length, 'count': 0, 'statistics': None, 'error': str(e)}
+
+    def _calculate_gc_content(self, sequence: str) -> float:
+        """Calculate GC content percentage"""
+        if not sequence:
+            return 0.0
+        gc_count = sequence.upper().count('G') + sequence.upper().count('C')
+        return (gc_count / len(sequence)) * 100
