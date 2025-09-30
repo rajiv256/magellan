@@ -57,7 +57,7 @@ class JobManager:
 
         self.redis_client.hset('jobs', job_id, json.dumps(job_data))
 
-    def get_all_jobs(self) -> List[dict]:
+    def get_all_jobs(self, window=30) -> List[dict]:
         """Get all jobs"""
         jobs = []
         for job_id in self.redis_client.hkeys('jobs'):
@@ -67,4 +67,4 @@ class JobManager:
 
         # Sort by created_at descending
         jobs.sort(key=lambda x: x.get('created_at', ''), reverse=True)
-        return jobs
+        return jobs[:window]

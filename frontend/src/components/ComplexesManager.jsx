@@ -114,7 +114,7 @@ export default function ComplexesManager({complexes, setComplexes, strands}) {
                     <input
                         type="text"
                         className="form-control form-control-sm"
-                        placeholder="Structure (e.g., U10+)"
+                        placeholder="Structure: use one of the available notations on Nupack. (e.g., DU+)"
                         value={structure}
                         onChange={(e) => setStructure(e.target.value)}
                     />

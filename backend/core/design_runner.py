@@ -1,9 +1,9 @@
-from nupack import *
-from src.nupack import utils as nutils
-from typing import List, Dict
-from backend.api.models import Constraint, ConstraintType, ResultDomain, \
-    ResultStrand
 import traceback
+from typing import List
+
+from nupack import *
+
+from src.nupack import utils as nutils
 
 
 class DesignRunner:
@@ -26,7 +26,7 @@ class DesignRunner:
         return domains
 
     def build_strands(self, strands_data: List[dict], domains: List[Domain]) -> \
-    List[TargetStrand]:
+            List[TargetStrand]:
         """Build NUPACK strands from strand data"""
         strands = []
         for s in strands_data:
@@ -92,6 +92,7 @@ class DesignRunner:
                     scope_objs.append(
                         nutils.extract_domain_by_name(sname_clean, domains))
                 params['scope'] = scope_objs
+            print(f"=== Inside scope: {params}")
 
         # Parse patterns list
         if 'patterns' in params and isinstance(params['patterns'], str):
@@ -132,6 +133,7 @@ class DesignRunner:
                          strands: List[TargetStrand]):
         """Build a NUPACK constraint object"""
         params = self.parse_constraint_params(constraint, domains, strands)
+        print(f"+==+ params: {params}")
 
         ctype = constraint['type']
         is_hard = constraint['is_hard']
@@ -224,6 +226,7 @@ class DesignRunner:
             # Build constraints
             hard_constraints = []
             for hc in job_data.get('hard_constraints', []):
+                print("===> hc: ", hc)
                 hard_constraints.append(
                     self.build_constraint(hc, domains, strands)
                 )

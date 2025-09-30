@@ -41,13 +41,13 @@ export default function ConstraintsManager({
             {
                 name: 'word',
                 type: 'number',
-                placeholder: 'e.g., 4',
+                placeholder: 'Word length e.g., 4',
                 help: 'Word length'
             },
             {
                 name: 'types',
                 type: 'number',
-                placeholder: 'e.g., 2',
+                placeholder: 'Nucleotide types e.g., 2',
                 help: 'Number of types'
             },
             {
