@@ -4,6 +4,7 @@ import DomainsManager from './components/DomainsManager';
 import StrandsManager from './components/StrandsManager';
 import ComplexesManager from './components/ComplexesManager';
 import ConstraintsManager from './components/ConstraintsManager';
+import OffTargetsManager from './components/OffTargetsManager';
 import JobsViewer from './components/JobsViewer';
 import './App.css';
 
@@ -16,6 +17,7 @@ export default function App() {
     const [complexes, setComplexes] = useState([]);
     const [hardConstraints, setHardConstraints] = useState([]);
     const [softConstraints, setSoftConstraints] = useState([]);
+    const [offTargets, setOffTargets] = useState({max_size: 3, excludes: []});
     const [jobs, setJobs] = useState([]);
     const [jobName, setJobName] = useState('');
     const [baseConc, setBaseConc] = useState('1e-7');
@@ -31,6 +33,28 @@ export default function App() {
         } catch (error) {
             console.error('Failed to fetch jobs:', error);
         }
+    };
+
+    const cloneJob = (job) => {
+        // Load all inputs from the job
+        setDomains(job.input_data.domains || []);
+        setStrands(job.input_data.strands || []);
+        setComplexes(job.input_data.complexes || []);
+        setHardConstraints(job.input_data.hard_constraints || []);
+        setSoftConstraints(job.input_data.soft_constraints || []);
+        setOffTargets(job.input_data.off_targets || {
+            max_size: 3,
+            excludes: []
+        });
+        setBaseConc(job.input_data.base_concentration?.toString() || '1e-7');
+        setTrials(job.input_data.trials || 3);
+        setFStop(job.input_data.f_stop || 0.01);
+        setSeed(job.input_data.seed || 93);
+        setJobName(job.name + '_clone');
+
+        // Switch to design tab
+        setActiveTab('design');
+        alert('Job inputs loaded! You can now modify and re-run.');
     };
 
     const runDesignJob = async () => {
@@ -52,6 +76,7 @@ export default function App() {
             base_concentration: parseFloat(baseConc),
             hard_constraints: hardConstraints,
             soft_constraints: softConstraints,
+            off_targets: offTargets,
             trials: parseInt(trials),
             f_stop: parseFloat(fStop),
             seed: parseInt(seed)
@@ -119,9 +144,14 @@ export default function App() {
                         domains={domains}
                         strands={strands}
                     />
+                    <OffTargetsManager
+                        offTargets={offTargets}
+                        setOffTargets={setOffTargets}
+                        strands={strands}
+                    />
 
                     <div className="card">
-                        <h3 className="mb-3">5. Run Design</h3>
+                        <h3 className="mb-3">6. Run Design</h3>
                         <div className="row g-2 mb-3">
                             <div className="col-md-3">
                                 <label className="form-label small">Job
@@ -184,7 +214,8 @@ export default function App() {
                     </div>
                 </div>
             ) : (
-                <JobsViewer jobs={jobs} refreshJobs={refreshJobs}/>
+                <JobsViewer jobs={jobs} refreshJobs={refreshJobs}
+                            onCloneJob={cloneJob}/>
             )}
         </div>
     );

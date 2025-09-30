@@ -205,6 +205,23 @@ class DesignRunner:
         except Exception as e:
             raise ValueError(f"Failed to build constraint {ctype}: {str(e)}")
 
+    def build_off_targets(self, off_target_config: dict,
+                          strands: List[TargetStrand]) -> SetSpec:
+        """Build SetSpec for off_targets with max_size and excludes"""
+        max_size = off_target_config.get('max_size', 3)
+        excludes_data = off_target_config.get('excludes', [])
+
+        # Convert excludes from list of strand name lists to list of strand object lists
+        excludes = []
+        for exclude_group in excludes_data:
+            strand_group = []
+            for strand_name in exclude_group:
+                strand_obj = nutils.extract_strand_by_name(strand_name, strands)
+                strand_group.append(strand_obj)
+            excludes.append(strand_group)
+
+        return SetSpec(max_size=max_size, exclude=excludes)
+
     def run_design(self, job_data: dict) -> dict:
         """Run the NUPACK design job"""
         try:
@@ -237,8 +254,18 @@ class DesignRunner:
                     self.build_constraint(sc, domains, strands)
                 )
 
-            # Create tube (simplified - you can expand this later)
-            tube = TargetTube(on_targets=concentrations, name='tube1')
+            # Build off_targets with SetSpec
+            off_target_config = job_data.get('off_targets',
+                                             {'max_size': 3, 'excludes': []})
+            off_targets_spec = self.build_off_targets(off_target_config,
+                                                      strands)
+
+            # Create tube with off_targets
+            tube = TargetTube(
+                on_targets=concentrations,
+                name='tube1',
+                off_targets=off_targets_spec
+            )
 
             # Design options
             options = DesignOptions(
