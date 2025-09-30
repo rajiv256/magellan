@@ -29,13 +29,19 @@ div3 = Diversity(word=10, types=4, scope=[nutils.extract_domain_by_name('dy1',
                                                                         domains),
                                           nutils.extract_domain_by_name('dw',
                                                                         domains)])
+a_t_4 = Pattern(["W4"])
+a_t_3 = Pattern(["W3"], scope=[nutils.extract_domain_by_name('dx',
+                                                             domains),
+                               nutils.extract_domain_by_name('dx1m',
+                                                             domains),
+                               nutils.extract_domain_by_name('dx2m',
+                                                             domains)])
 
 
 # Specify the soft constraints.
 ssm1 = SSM(word=4, weight=0.3)
 ssm2 = SSM(word=5, weight=0.4)
 ssm3 = SSM(word=6, weight=0.5)
-a_t_5 = Pattern(["W5"], weight=0.5)
 
 diff1 = EnergyMatch([
     nutils.extract_domain_by_name('dx', domains),
@@ -76,8 +82,8 @@ my_options = DesignOptions(f_stop=0.01, seed=93)
 model = Model(material='dna', celsius=37, sodium=0.5, magnesium=0.1)
 
 my_design = tube_design(tubes=[t1], model=model, options=my_options,
-                        hard_constraints=[div1, div2, div3],
-                        soft_constraints=[ssm1, ssm2, ssm3, diff1, diff2, a_t_5])
+                        hard_constraints=[div1, div2, div3, a_t_4, a_t_3],
+                        soft_constraints=[ssm1, ssm2, ssm3, diff1, diff2])
 
 results = my_design.run(trials=3)[0]
 
