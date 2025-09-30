@@ -27,13 +27,13 @@ export default function ConstraintsManager({
             {
                 name: 'scope',
                 type: 'domains',
-                placeholder: 'Domain names',
+                placeholder: 'Optional scope domains',
                 help: 'Optional scope domains'
             },
             {
                 name: 'weight',
                 type: 'number',
-                placeholder: '1.0',
+                placeholder: 'weight (e.g.,1.0)',
                 help: 'Soft only'
             }
         ],
@@ -53,7 +53,7 @@ export default function ConstraintsManager({
             {
                 name: 'scope',
                 type: 'domains',
-                placeholder: 'Domain names',
+                placeholder: 'Domain names (scope; Defaults to all domains)',
                 help: 'Optional scope'
             }
         ],
@@ -93,19 +93,19 @@ export default function ConstraintsManager({
             {
                 name: 'source',
                 type: 'text',
-                placeholder: 'e.g., S5',
+                placeholder: 'Source pattern (e.g., S5)',
                 help: 'Source pattern'
             },
             {
                 name: 'limits',
                 type: 'text',
-                placeholder: 'e.g., 0.2,0.8',
+                placeholder: 'Min,Max limits (e.g., 0.2,0.8)',
                 help: 'Min,Max limits'
             },
             {
                 name: 'weight',
                 type: 'number',
-                placeholder: '1.0',
+                placeholder: 'Weight; Soft only (e.g., 1.0)',
                 help: 'Soft only'
             }
         ],
@@ -117,20 +117,21 @@ export default function ConstraintsManager({
                 placeholder: 'Domain names',
                 help: 'Optional'
             },
-            {name: 'weight', type: 'number', placeholder: '0.3'}
+            {name: 'weight', type: 'number', placeholder: 'Weight; Soft' +
+                    ' (e.g., 0.3)'}
         ],
         EnergyMatch: [
             {name: 'domains', type: 'domains', placeholder: 'Domain list'},
             {
                 name: 'energy_ref',
                 type: 'number',
-                placeholder: '-17',
+                placeholder: 'Optional reference (-17)',
                 help: 'Optional reference'
             },
             {
                 name: 'weight',
                 type: 'number',
-                placeholder: '1.0',
+                placeholder: 'Soft only (e.g., 1.0)',
                 help: 'Soft only'
             }
         ],
