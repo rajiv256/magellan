@@ -104,7 +104,7 @@ export default function App() {
 
     return (
         <div className="container-fluid py-4">
-            <h1 className="mb-4">DNA Circuit Design Tool</h1>
+            <h1 className="mb-4">Magellan (A wrapper over NuPACK)</h1>
 
             <ul className="nav nav-tabs mb-4">
                 <li className="nav-item">
