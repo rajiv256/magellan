@@ -205,3 +205,9 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+venv
+**/venv/
+dump.rdb
+/frontend/node_modules/
+/frontend/package.json
+/frontend/package-lock.json
