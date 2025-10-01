@@ -44,6 +44,10 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+python3 -m venv venv
+source venv/bin/activate
+pip install -r backend/requirements.txt
+
 # Check Python
 print_status "Checking Python installation..."
 if command_exists python3; then
