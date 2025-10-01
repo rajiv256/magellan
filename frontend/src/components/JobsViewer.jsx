@@ -1,7 +1,7 @@
 import React, {useState} from 'react';
 import {ChevronDown, ChevronRight} from 'lucide-react';
 
-export default function JobsViewer({jobs, refreshJobs}) {
+export default function JobsViewer({jobs, refreshJobs, onCloneJob}) {
     const [expandedJob, setExpandedJob] = useState(null);
 
     const statusColors = {
@@ -42,11 +42,24 @@ export default function JobsViewer({jobs, refreshJobs}) {
                                     <span
                                         className={`badge bg-${statusColors[job.status]}`}>{job.status}</span>
                                 </div>
+                                <div
+                                    className="d-flex align-items-center gap-2">
+                                    <button
+                                        className="btn btn-sm btn-outline-primary"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onCloneJob(job);
+                                        }}
+                                    >
+                                        Load Params
+                                    </button>
+                                </div>
                                 <small
                                     className="text-muted">{new Date(job.created_at).toLocaleString()}</small>
                             </div>
 
                             {expandedJob === job.job_id && (
+
                                 <div className="p-3 border rounded mt-2">
                                     {job.status === 'Failed' && job.error && (
                                         <div
