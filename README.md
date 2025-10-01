@@ -3,6 +3,9 @@
 A wrapper over NUPACK for designing orthogonal DNA sequences with
 enhanced usability and the ability to re-use Design specifications.
 
+_Note: Hybrid development  between my natural intelligence and Claude's 
+artificial intelligence._
+
 ## Features
 
 - **Intuitive Web Interface**: Design DNA circuits through a modern React
