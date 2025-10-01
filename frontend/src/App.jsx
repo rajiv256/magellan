@@ -122,7 +122,17 @@ export default function App() {
 
     return (
         <div className="container-fluid py-4">
-            <h1 className="mb-4">Magellan (A wrapper over NuPACK)</h1>
+            <div
+                className="min-h-screen flex items-center justify-center bg-slate-50">
+                <div className="text-center">
+                    <h1 className="text-7xl font-extrabold text-gray-900 mb-4 tracking-tight">
+                        Magellan
+                    </h1>
+                    <div className="w-24 h-1 bg-blue-600 mx-auto mb-4"></div>
+                    <p className="text-xl text-gray-600">A wrapper over
+                        NUPACK</p>
+                </div>
+            </div>
 
             <ul className="nav nav-tabs mb-4">
                 <li className="nav-item">
