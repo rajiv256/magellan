@@ -239,6 +239,15 @@ class DesignRunner:
             # Build concentrations
             base_conc = job_data.get('base_concentration', 1e-7)
             concentrations = {c: base_conc for c in complexes}
+            # Build concentrations
+            custom_concentrations = job_data.get('custom_concentrations', {})
+
+            for c in complexes:
+                # Use custom concentration if specified, otherwise use base_conc
+                if c.name in custom_concentrations:
+                    concentrations[c] = float(custom_concentrations[c.name])
+                else:
+                    concentrations[c] = base_conc
 
             # Build constraints
             hard_constraints = []
