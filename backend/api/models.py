@@ -72,6 +72,7 @@ class DesignJobCreate(BaseModel):
     strands: List[Strand]
     complexes: List[Complex]
     base_concentration: float = 1e-7
+    custom_concentrations: Dict[str, float] = {}
     hard_constraints: List[Constraint] = []
     soft_constraints: List[Constraint] = []
     trials: int = 3

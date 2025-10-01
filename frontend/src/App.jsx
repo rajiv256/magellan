@@ -17,6 +17,7 @@ export default function App() {
     const [complexes, setComplexes] = useState([]);
     const [hardConstraints, setHardConstraints] = useState([]);
     const [softConstraints, setSoftConstraints] = useState([]);
+    const [customConcentrations, setCustomConcentrations] = useState({});
     const [offTargets, setOffTargets] = useState({max_size: 3, excludes: []});
     const [jobs, setJobs] = useState([]);
     const [jobName, setJobName] = useState('');
@@ -35,13 +36,14 @@ export default function App() {
         }
     };
 
+
     const cloneJob = (job) => {
-        // Load all inputs from the job
         setDomains(job.input_data.domains || []);
         setStrands(job.input_data.strands || []);
         setComplexes(job.input_data.complexes || []);
         setHardConstraints(job.input_data.hard_constraints || []);
         setSoftConstraints(job.input_data.soft_constraints || []);
+        setCustomConcentrations(job.input_data.custom_concentrations || {});
         setOffTargets(job.input_data.off_targets || {
             max_size: 3,
             excludes: []
@@ -51,8 +53,6 @@ export default function App() {
         setFStop(job.input_data.f_stop || 0.01);
         setSeed(job.input_data.seed || 93);
         setJobName(job.name + '_clone');
-
-        // Switch to design tab
         setActiveTab('design');
         alert('Job inputs loaded! You can now modify and re-run.');
     };
@@ -74,6 +74,7 @@ export default function App() {
             strands: strands,
             complexes: complexes,
             base_concentration: parseFloat(baseConc),
+            custom_concentrations: customConcentrations,
             hard_constraints: hardConstraints,
             soft_constraints: softConstraints,
             off_targets: offTargets,
@@ -149,6 +150,43 @@ export default function App() {
                         setOffTargets={setOffTargets}
                         strands={strands}
                     />
+                    <div className="card">
+                        <h3 className="mb-3">6. Custom Concentrations
+                            (Optional)</h3>
+                        <p className="text-muted small">Override base
+                            concentration for specific complexes</p>
+                        {complexes.length === 0 ? (
+                            <p className="text-muted small">Add complexes first
+                                to set custom concentrations</p>
+                        ) : (
+                            complexes.map((complex, idx) => (
+                                <div key={idx}
+                                     className="row g-2 mb-2 align-items-center">
+                                    <div className="col-md-3">
+                                        <label
+                                            className="form-label small mb-0">{complex.name}</label>
+                                    </div>
+                                    <div className="col-md-4">
+                                        <input
+                                            type="text"
+                                            className="form-control form-control-sm"
+                                            placeholder={`Default: ${baseConc}`}
+                                            value={customConcentrations[complex.name] || ''}
+                                            onChange={(e) => {
+                                                const newConc = {...customConcentrations};
+                                                if (e.target.value) {
+                                                    newConc[complex.name] = e.target.value;
+                                                } else {
+                                                    delete newConc[complex.name];
+                                                }
+                                                setCustomConcentrations(newConc);
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
 
                     <div className="card">
                         <h3 className="mb-3">6. Run Design</h3>
