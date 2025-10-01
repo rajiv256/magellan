@@ -46,7 +46,9 @@ command_exists() {
 
 python3 -m venv venv
 source venv/bin/activate
+
 pip install -r backend/requirements.txt
+python3 -m pip install -U nupack -f data/nupack-4.0.2.0/package
 
 # Check Python
 print_status "Checking Python installation..."
