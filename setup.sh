@@ -48,7 +48,12 @@ python3 -m venv venv
 source venv/bin/activate
 
 pip install -r backend/requirements.txt
+
+if [ -f data/nupack-4.0.2.0/ ]; then
 python3 -m pip install -U nupack -f data/nupack-4.0.2.0/package
+else
+  print_error "Download and unzip Nupack in the data/ directory."
+fi
 
 # Check Python
 print_status "Checking Python installation..."
