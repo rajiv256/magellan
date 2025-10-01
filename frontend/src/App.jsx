@@ -37,21 +37,38 @@ export default function App() {
     };
 
 
+    // const cloneJob = (job) => {
+    //     setDomains(job.input_data.domains || []);
+    //     setStrands(job.input_data.strands || []);
+    //     setComplexes(job.input_data.complexes || []);
+    //     setHardConstraints(job.input_data.hard_constraints || []);
+    //     setSoftConstraints(job.input_data.soft_constraints || []);
+    //     setCustomConcentrations(job.input_data.custom_concentrations || {});
+    //     setOffTargets(job.input_data.off_targets || {
+    //         max_size: 3,
+    //         excludes: []
+    //     });
+    //     setBaseConc(job.input_data.base_concentration?.toString() || '1e-7');
+    //     setTrials(job.input_data.trials || 3);
+    //     setFStop(job.input_data.f_stop || 0.01);
+    //     setSeed(job.input_data.seed || 93);
+    //     setJobName(job.name + '_clone');
+    //     setActiveTab('design');
+    //     alert('Job inputs loaded! You can now modify and re-run.');
+    // };
+
     const cloneJob = (job) => {
-        setDomains(job.input_data.domains || []);
-        setStrands(job.input_data.strands || []);
-        setComplexes(job.input_data.complexes || []);
-        setHardConstraints(job.input_data.hard_constraints || []);
-        setSoftConstraints(job.input_data.soft_constraints || []);
-        setCustomConcentrations(job.input_data.custom_concentrations || {});
-        setOffTargets(job.input_data.off_targets || {
-            max_size: 3,
-            excludes: []
-        });
-        setBaseConc(job.input_data.base_concentration?.toString() || '1e-7');
-        setTrials(job.input_data.trials || 3);
-        setFStop(job.input_data.f_stop || 0.01);
-        setSeed(job.input_data.seed || 93);
+        setDomains(job.domains || []);
+        setStrands(job.strands || []);
+        setComplexes(job.complexes || []);
+        setHardConstraints(job.hard_constraints || []);
+        setSoftConstraints(job.soft_constraints || []);
+        setCustomConcentrations(job.custom_concentrations || {});
+        setOffTargets(job.off_targets || {max_size: 3, excludes: []});
+        setBaseConc(job.base_concentration?.toString() || '1e-7');
+        setTrials(job.trials || 3);
+        setFStop(job.f_stop || 0.01);
+        setSeed(job.seed || 93);
         setJobName(job.name + '_clone');
         setActiveTab('design');
         alert('Job inputs loaded! You can now modify and re-run.');
