@@ -8,3 +8,7 @@ Y2	y2	U21
 W	w	U21
 X1m	x1m	U18
 X2m	x2m	U18
+rep1_complex	rep1_base,rep1_out	D21(U21+)
+rep2_complex	rep2_base,rep2_out	D21(U21+)
+rep1_out	rep1_out	U21
+rep2_out	rep2_out	U21

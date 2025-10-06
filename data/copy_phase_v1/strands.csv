@@ -8,3 +8,7 @@ w	dw
 base1	~dy1,~dx
 base2	~dy2,~dx1m
 base3	~dw,~dx2m
+rep1_base	~drep1,~dy1
+rep2_base	~drep2,~dy2
+rep1_out	drep1
+rep2_out	drep2

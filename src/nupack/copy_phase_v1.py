@@ -15,27 +15,40 @@ def get_data_dir():
 
 
 domains_df, strands_df, complexes_df = nutils.read_data_dir(get_data_dir())
-
+print(domains_df)
 domains = nutils.build_domains_from_df(domains_df)
 strands = nutils.build_target_strands_from_df(strands_df, domains)
 complexes = nutils.build_target_complexes_from_df(complexes_df, strands)
 
+
+
 # Specify the hard constraints.
-div1 = Diversity(word=4, types=2)
-div2 = Diversity(word=6, types=3)
-div3 = Diversity(word=10, types=4, scope=[nutils.extract_domain_by_name('dy1',
+div1 = Diversity(word=4, types=2, scope=[nutils.extract_domain_by_name('drep1',
+                                                                       domains),
+                                         nutils.extract_domain_by_name('drep2',
+                                                                       domains)])
+div2 = Diversity(word=6, types=3, scope=[nutils.extract_domain_by_name('drep1',
+                                                                       domains),
+                                         nutils.extract_domain_by_name('drep2',
+                                                                       domains)])
+div3 = Diversity(word=10, types=4, scope=[nutils.extract_domain_by_name('drep1',
                                                                         domains),
-                                          nutils.extract_domain_by_name('dy2',
-                                                                        domains),
-                                          nutils.extract_domain_by_name('dw',
+                                          nutils.extract_domain_by_name('drep2',
                                                                         domains)])
-a_t_4 = Pattern(["W4"])
-a_t_3 = Pattern(["W3"], scope=[nutils.extract_domain_by_name('dx',
-                                                             domains),
-                               nutils.extract_domain_by_name('dx1m',
-                                                             domains),
-                               nutils.extract_domain_by_name('dx2m',
-                                                             domains)])
+# g4 = Pattern(["G4"], scope=[nutils.extract_strand_by_name('rep1_base',
+#                                                           strands),
+#                             nutils.extract_strand_by_name('rep2_base',
+#                                                           strands)])
+# a_t_4 = Pattern(["N4"], scope=[nutils.extract_domain_by_name('drep1',
+#                                                              domains),
+#                                nutils.extract_domain_by_name('drep2',
+#                                                              domains)])
+# a_t_3 = Pattern(["W3"], scope=[nutils.extract_domain_by_name('dx',
+#                                                              domains),
+#                                nutils.extract_domain_by_name('dx1m',
+#                                                              domains),
+#                                nutils.extract_domain_by_name('dx2m',
+#                                                              domains)])
 
 
 # Specify the soft constraints.
@@ -43,17 +56,17 @@ ssm1 = SSM(word=4, weight=0.3)
 ssm2 = SSM(word=5, weight=0.4)
 ssm3 = SSM(word=6, weight=0.5)
 
-diff1 = EnergyMatch([
-    nutils.extract_domain_by_name('dx', domains),
-    nutils.extract_domain_by_name('dx1m', domains),
-    nutils.extract_domain_by_name('dx2m', domains)
-])
+# diff1 = EnergyMatch([
+#     nutils.extract_domain_by_name('dx', domains),
+#     nutils.extract_domain_by_name('dx1m', domains),
+#     nutils.extract_domain_by_name('dx2m', domains)
+# ])
 
-diff2 = EnergyMatch([
-    nutils.extract_domain_by_name('dy1', domains),
-    nutils.extract_domain_by_name('dy2', domains),
-    nutils.extract_domain_by_name('dw', domains)
-])
+# diff2 = EnergyMatch([
+#     nutils.extract_domain_by_name('dy1', domains),
+#     nutils.extract_domain_by_name('dy2', domains),
+#     nutils.extract_domain_by_name('dw', domains)
+# ])
 
 BASE_CONC = 1e-7  # 100 nM
 concentrations = {}
@@ -69,21 +82,24 @@ sx2m = nutils.extract_strand_by_name('x2m', strands)
 sy1 = nutils.extract_strand_by_name('y1', strands)
 sy2 = nutils.extract_strand_by_name('y2', strands)
 sw = nutils.extract_strand_by_name('w', strands)
+rep1_base = nutils.extract_strand_by_name('rep1_base', strands)
+rep2_base = nutils.extract_strand_by_name('rep2_base', strands)
+rep1_out = nutils.extract_strand_by_name('rep1_out', strands)
+rep2_out = nutils.extract_strand_by_name('rep2_out', strands)
+
 t1 = TargetTube(on_targets=concentrations, name='t1',
-                off_targets=SetSpec(max_size=3, exclude=[[base1, sx, sy1],
-                                                         [base2, sx1m, sy2],
-                                                         [base3, sx2m, sw],
-                                                         [base1, sx],
-                                                         [base2, sx1m],
-                                                         [base3, sx2m]]))
+                off_targets=SetSpec(max_size=3, exclude=[[rep1_base,sy1,
+                                                          rep1_out],
+                                                         [rep2_base,sy2,
+                                                          rep2_out]]))
 
 my_options = DesignOptions(f_stop=0.01, seed=93)
 
 model = Model(material='dna', celsius=37, sodium=0.5, magnesium=0.1)
 
 my_design = tube_design(tubes=[t1], model=model, options=my_options,
-                        hard_constraints=[div1, div2, div3, a_t_4, a_t_3],
-                        soft_constraints=[ssm1, ssm2, ssm3, diff1, diff2])
+                        hard_constraints=[div1, div2, div3],
+                        soft_constraints=[ssm1, ssm2, ssm3])
 
 results = my_design.run(trials=3)[0]
 
