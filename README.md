@@ -27,6 +27,12 @@ artificial intelligence._
 git clone <your-repo-url>
 cd magellan
 
+source venv/bin/activate
+
+# You need to download NUPACK from the official website
+# and substitute the root folder path with $NUPACK_ROOT
+python3 -m pip install -U nupack -f $NUPACK_ROOT/package
+
 # Run the setup script
 chmod +x setup.sh
 ./setup.sh

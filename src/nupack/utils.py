@@ -11,6 +11,8 @@ def extract_index_by_name(name: str, l: List[str]) -> int:
         if elem == name:
             index = idx
             break
+    if index == -1:
+        print(name, l)
     assert index != -1, "Name not found!"
     return index
 
