@@ -27,7 +27,7 @@ export default function ConstraintsManager({
             {
                 name: 'scope',
                 type: 'domains',
-                placeholder: 'Optional scope domains',
+                placeholder: 'comma sep list of domains',
                 help: 'Optional scope domains'
             },
             {
@@ -53,7 +53,7 @@ export default function ConstraintsManager({
             {
                 name: 'scope',
                 type: 'domains',
-                placeholder: 'Domain names (scope; Defaults to all domains)',
+                placeholder: 'comma sep list of domains',
                 help: 'Optional scope'
             }
         ],
@@ -89,7 +89,7 @@ export default function ConstraintsManager({
             }
         ],
         Similarity: [
-            {name: 'domains', type: 'domains', placeholder: 'Domain list'},
+            {name: 'domains', type: 'domains', placeholder: 'comma sep domain list'},
             {
                 name: 'source',
                 type: 'text',
@@ -114,18 +114,18 @@ export default function ConstraintsManager({
             {
                 name: 'scope',
                 type: 'domains',
-                placeholder: 'Domain names',
+                placeholder: '(Optional) Comma separated list of Domain names',
                 help: 'Optional'
             },
             {name: 'weight', type: 'number', placeholder: 'Weight; Soft' +
                     ' (e.g., 0.3)'}
         ],
         EnergyMatch: [
-            {name: 'domains', type: 'domains', placeholder: 'Domain list'},
+            {name: 'domains', type: 'domains', placeholder: 'comma sep domain list'},
             {
                 name: 'energy_ref',
                 type: 'number',
-                placeholder: 'Optional reference (-17)',
+                placeholder: 'Comma separated list of domains',
                 help: 'Optional reference'
             },
             {
@@ -136,7 +136,7 @@ export default function ConstraintsManager({
             }
         ],
         Library: [
-            {name: 'domains', type: 'domains', placeholder: 'Domain list'},
+            {name: 'domains', type: 'domains', placeholder: 'comma sep domain list'},
             {
                 name: 'catalog',
                 type: 'text',

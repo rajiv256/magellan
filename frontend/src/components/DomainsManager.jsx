@@ -14,7 +14,7 @@ export default function DomainsManager({domains, setDomains}) {
             return;
         }
 
-        const codeRegex = /^([MRWSYKVHDBNATGCU][0-9]+)*$/;
+        const codeRegex = /^([MRWSYKVHDBNATGCU]+|([MRWSYKVHDBNATGCU][0-9]+)+)$/;
         if (!codeRegex.test(code)) {
             setError('Invalid code format. Use pattern like N20, A10, etc.');
             return;

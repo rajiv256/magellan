@@ -1,6 +1,6 @@
 # Magellan
 
-A wrapper over NUPACK for designing orthogonal DNA sequences with
+A wrapper over NUPACK f or designing orthogonal DNA sequences with
 enhanced usability and the ability to re-use Design specifications.
 
 _Note: Hybrid development  between my natural intelligence and Claude's 
