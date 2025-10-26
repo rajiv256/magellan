@@ -54,7 +54,7 @@ async def create_design_job(job: DesignJobCreate,
     """Create a new design job"""
     try:
         job_id = str(uuid.uuid4())
-
+        print("This is the raw received data", job)
         # Convert to dict
         job_dict = job.model_dump()
 

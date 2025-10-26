@@ -34,8 +34,8 @@ source venv/bin/activate
 python3 -m pip install -U nupack -f $NUPACK_ROOT/package
 
 # Run the setup script
-chmod +x setup.sh
-./setup.sh
+chmod +x run.sh
+./run.sh
 ```
 
 The setup script will:
