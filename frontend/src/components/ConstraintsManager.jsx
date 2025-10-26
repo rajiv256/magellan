@@ -125,7 +125,7 @@ export default function ConstraintsManager({
             {
                 name: 'energy_ref',
                 type: 'number',
-                placeholder: 'Comma separated list of domains',
+                placeholder: 'energy_reference',
                 help: 'Optional reference'
             },
             {

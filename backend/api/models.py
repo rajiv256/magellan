@@ -10,7 +10,7 @@ class DomainCreate(BaseModel):
 
     @validator('code')
     def validate_code(cls, v):
-        if not re.match(r'^([MRWSYKVHDBNATGCU][0-9]+)*$', v):
+        if not re.match(r'^([MRWSYKVHDBNATGCU][0-9]*)+$', v):
             raise ValueError('Invalid domain code format')
         return v
 

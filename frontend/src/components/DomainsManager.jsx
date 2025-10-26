@@ -14,7 +14,7 @@ export default function DomainsManager({domains, setDomains}) {
             return;
         }
 
-        const codeRegex = /^([MRWSYKVHDBNATGCU]+|([MRWSYKVHDBNATGCU][0-9]+)+)$/;
+        const codeRegex = /^([MRWSYKVHDBNATGCU][0-9]*)+$/;
         if (!codeRegex.test(code)) {
             setError('Invalid code format. Use pattern like N20, A10, etc.');
             return;
@@ -41,7 +41,7 @@ export default function DomainsManager({domains, setDomains}) {
         const lines = bulkInput.trim().split('\n').filter(line => line.trim());
         const errors = [];
         const newDomains = [...domains];
-        const codeRegex = /^([MRWSYKVHDBNATGCU][0-9]+)*$/;
+        const codeRegex = /^([MRWSYKVHDBNATGCU][0-9]*)+$/;
 
         let idCounter = Date.now();
 
@@ -58,6 +58,7 @@ export default function DomainsManager({domains, setDomains}) {
             const [domainName, domainCode] = parts;
 
             if (!codeRegex.test(domainCode)) {
+                errors.push(`"${domainCode}"`);
                 errors.push(`Line ${i + 1}: Invalid code format for "${domainName}"`);
                 continue;
             }
