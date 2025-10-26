@@ -41,9 +41,9 @@ command_exists() {
 stop_services() {
     print_status "Stopping any running services..."
 
-    # Check for PID files
-    if [ -f ".backend.pid" ]; then
-        BACKEND_PID=$(cat .backend.pid 2>/dev/null)
+    # Check for PID files in the logs directory
+    if [ -f "logs/backend.pid" ]; then
+        BACKEND_PID=$(cat logs/backend.pid 2>/dev/null)
         if ps -p $BACKEND_PID > /dev/null 2>&1; then
             print_status "Stopping backend (PID: $BACKEND_PID)"
             kill $BACKEND_PID 2>/dev/null
@@ -51,11 +51,13 @@ stop_services() {
         else
             print_warning "Backend process not found"
         fi
-        rm -f .backend.pid
+        rm -f logs/backend.pid
+    else
+        print_warning "Backend PID file not found"
     fi
 
-    if [ -f ".frontend.pid" ]; then
-        FRONTEND_PID=$(cat .frontend.pid 2>/dev/null)
+    if [ -f "logs/frontend.pid" ]; then
+        FRONTEND_PID=$(cat logs/frontend.pid 2>/dev/null)
         if ps -p $FRONTEND_PID > /dev/null 2>&1; then
             print_status "Stopping frontend (PID: $FRONTEND_PID)"
             kill $FRONTEND_PID 2>/dev/null
@@ -63,7 +65,9 @@ stop_services() {
         else
             print_warning "Frontend process not found"
         fi
-        rm -f .frontend.pid
+        rm -f logs/frontend.pid
+    else
+        print_warning "Frontend PID file not found"
     fi
 
     # Find and kill any remaining processes by command pattern
@@ -185,7 +189,7 @@ print_status "Starting backend server..."
 # Start backend in background
 python3 -m backend.api.main > logs/backend.log 2>&1 &
 BACKEND_PID=$!
-echo $BACKEND_PID > .backend.pid
+echo $BACKEND_PID > logs/backend.pid  # Write PID to logs directory
 
 sleep 3
 
@@ -202,7 +206,7 @@ print_status "Starting frontend server..."
 cd frontend
 npm run dev > ../logs/frontend.log 2>&1 &
 FRONTEND_PID=$!
-echo $FRONTEND_PID > ../.frontend.pid
+echo $FRONTEND_PID > ../logs/frontend.pid  # Write PID to logs directory
 cd ..
 
 sleep 3

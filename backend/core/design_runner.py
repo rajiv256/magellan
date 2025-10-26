@@ -205,8 +205,8 @@ class DesignRunner:
         except Exception as e:
             raise ValueError(f"Failed to build constraint {ctype}: {str(e)}")
 
-    def build_off_targets(self, off_target_config: dict,
-                          strands: List[TargetStrand]) -> SetSpec:
+
+    def build_off_targets(self, off_target_config: dict, strands: List[TargetStrand]) -> SetSpec:
         """Build SetSpec for off_targets with max_size and excludes"""
         max_size = off_target_config.get('max_size', 3)
         excludes_data = off_target_config.get('excludes', [])
@@ -264,6 +264,7 @@ class DesignRunner:
                 )
 
             # Build off_targets with SetSpec
+
             off_target_config = job_data.get('off_targets',
                                              {'max_size': 3, 'excludes': []})
             off_targets_spec = self.build_off_targets(off_target_config,

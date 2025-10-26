@@ -66,6 +66,10 @@ class Constraint(BaseModel):
     params: Dict[str, Any]
 
 
+class OffTargets(BaseModel):
+    max_size: int = Field(3, description="Maximum number of strands in off-target complexes")
+    excludes: List[List[str]] = Field(default_factory=list,
+                                      description="List of strand groups to exclude as off-targets")
 class DesignJobCreate(BaseModel):
     name: str
     domains: List[Domain]
@@ -75,6 +79,11 @@ class DesignJobCreate(BaseModel):
     custom_concentrations: Dict[str, float] = {}
     hard_constraints: List[Constraint] = []
     soft_constraints: List[Constraint] = []
+    # Add this field - it was missing!
+    off_targets: Optional[OffTargets] = Field(
+        default_factory=lambda: {"max_size": 3, "excludes": []},
+        description="Off-targets configuration"
+    )
     trials: int = 3
     f_stop: float = 0.01
     seed: int = 93
