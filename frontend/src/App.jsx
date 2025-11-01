@@ -6,6 +6,7 @@ import ComplexesManager from './components/ComplexesManager';
 import ConstraintsManager from './components/ConstraintsManager';
 import OffTargetsManager from './components/OffTargetsManager';
 import JobsViewer from './components/JobsViewer';
+import ImportExportManager from './components/ImportExportManager';
 import './App.css';
 
 const API_URL = 'http://localhost:8000';
@@ -25,6 +26,7 @@ export default function App() {
     const [trials, setTrials] = useState(3);
     const [fStop, setFStop] = useState(0.01);
     const [seed, setSeed] = useState(93);
+    const [exportFormat, setExportFormat] = useState('json');
 
     const refreshJobs = async () => {
         try {
@@ -35,27 +37,6 @@ export default function App() {
             console.error('Failed to fetch jobs:', error);
         }
     };
-
-
-    // const cloneJob = (job) => {
-    //     setDomains(job.input_data.domains || []);
-    //     setStrands(job.input_data.strands || []);
-    //     setComplexes(job.input_data.complexes || []);
-    //     setHardConstraints(job.input_data.hard_constraints || []);
-    //     setSoftConstraints(job.input_data.soft_constraints || []);
-    //     setCustomConcentrations(job.input_data.custom_concentrations || {});
-    //     setOffTargets(job.input_data.off_targets || {
-    //         max_size: 3,
-    //         excludes: []
-    //     });
-    //     setBaseConc(job.input_data.base_concentration?.toString() || '1e-7');
-    //     setTrials(job.input_data.trials || 3);
-    //     setFStop(job.input_data.f_stop || 0.01);
-    //     setSeed(job.input_data.seed || 93);
-    //     setJobName(job.name + '_clone');
-    //     setActiveTab('design');
-    //     alert('Job inputs loaded! You can now modify and re-run.');
-    // };
 
     const cloneJob = (job) => {
         setDomains(job.domains || []);
@@ -74,6 +55,56 @@ export default function App() {
         alert('Job inputs loaded! You can now modify and re-run.');
     };
 
+    // Get current design data for export/import
+    const getCurrentDesignData = () => {
+        return {
+            name: jobName || 'unnamed_design',
+            domains: domains,
+            strands: strands,
+            complexes: complexes,
+            base_concentration: parseFloat(baseConc) || 1e-7,
+            custom_concentrations: customConcentrations,
+            hard_constraints: hardConstraints,
+            soft_constraints: softConstraints,
+            off_targets: offTargets,
+            trials: parseInt(trials) || 3,
+            f_stop: parseFloat(fStop) || 0.01,
+            seed: parseInt(seed) || 93
+        };
+    };
+
+    // Handle importing design data
+    const handleImportDesign = (importedData) => {
+        try {
+            // Set all the form states from the imported data
+            setJobName(importedData.name || '');
+
+            // Support different key naming conventions in imports
+            setDomains(importedData.domains || []);
+            setStrands(importedData.strands || []);
+            setComplexes(importedData.complexes || []);
+
+            // Handle different key naming in different formats
+            setHardConstraints(importedData.hard_constraints || importedData.hardConstraints || []);
+            setSoftConstraints(importedData.soft_constraints || importedData.softConstraints || []);
+            setCustomConcentrations(importedData.custom_concentrations || importedData.customConcentrations || {});
+            setOffTargets(importedData.off_targets || importedData.offTargets || {max_size: 3, excludes: []});
+
+            // Handle numeric values with parsing and fallbacks
+            setBaseConc(((importedData.base_concentration !== undefined) ? importedData.base_concentration :
+                (importedData.baseConcentration !== undefined) ? importedData.baseConcentration : 1e-7).toString());
+            setTrials(importedData.trials || 3);
+            setFStop((importedData.f_stop !== undefined) ? importedData.f_stop :
+                (importedData.fStop !== undefined) ? importedData.fStop : 0.01);
+            setSeed(importedData.seed || 93);
+
+            alert('Design imported successfully!');
+        } catch (error) {
+            console.error('Error importing design:', error);
+            alert(`Failed to import design: ${error.message}`);
+        }
+    };
+
     const runDesignJob = async () => {
         if (!jobName) {
             alert('Please enter a job name');
@@ -85,20 +116,7 @@ export default function App() {
             return;
         }
 
-        const jobData = {
-            name: jobName,
-            domains: domains,
-            strands: strands,
-            complexes: complexes,
-            base_concentration: parseFloat(baseConc),
-            custom_concentrations: customConcentrations,
-            hard_constraints: hardConstraints,
-            soft_constraints: softConstraints,
-            off_targets: offTargets,
-            trials: parseInt(trials),
-            f_stop: parseFloat(fStop),
-            seed: parseInt(seed)
-        };
+        const jobData = getCurrentDesignData();
 
         try {
             const response = await fetch(`${API_URL}/design`, {
@@ -120,18 +138,32 @@ export default function App() {
         }
     };
 
+    // Reset the form to initial state
+    const resetDesign = () => {
+        if (window.confirm('Are you sure you want to reset all design inputs? This action cannot be undone.')) {
+            setDomains([]);
+            setStrands([]);
+            setComplexes([]);
+            setHardConstraints([]);
+            setSoftConstraints([]);
+            setCustomConcentrations({});
+            setOffTargets({max_size: 3, excludes: []});
+            setJobName('');
+            setBaseConc('1e-7');
+            setTrials(3);
+            setFStop(0.01);
+            setSeed(93);
+        }
+    };
+
     return (
         <div className="container-fluid py-4">
-            <div
-                className="min-h-screen flex items-center justify-center bg-slate-50">
-                <div className="text-center">
-                    <h1 className="text-7xl font-extrabold text-gray-900 mb-4 tracking-tight">
-                        Magellan
-                    </h1>
-                    <div className="w-24 h-1 bg-blue-600 mx-auto mb-4"></div>
-                    <p className="text-xl text-gray-600">A wrapper over
-                        NUPACK</p>
-                </div>
+            <div className="mb-5 py-5 text-center bg-slate-50">
+                <h1 className="display-4 font-weight-bold text-gray-900">
+                    Magellan
+                </h1>
+                <div className="w-24 h-1 bg-blue-600 mx-auto mb-4"></div>
+                <p className="lead text-gray-600">A wrapper over NUPACK</p>
             </div>
 
             <ul className="nav nav-tabs mb-4">
@@ -158,6 +190,72 @@ export default function App() {
 
             {activeTab === 'design' ? (
                 <div className="design-tab">
+                    {/* Add the ImportExportManager component near the top */}
+                    <ImportExportManager
+                        designData={getCurrentDesignData()}
+                        onImport={handleImportDesign}
+                        format={exportFormat}
+                        onFormatChange={setExportFormat}
+                    />
+
+                    <div className="row mb-4">
+                        <div className="col-12">
+                            <div className="card">
+                                <h3 className="mb-3">Design Parameters</h3>
+                                <div className="row g-3">
+                                    <div className="col-md-4">
+                                        <label className="form-label">Job Name</label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            value={jobName}
+                                            onChange={(e) => setJobName(e.target.value)}
+                                            placeholder="My design job"
+                                        />
+                                    </div>
+                                    <div className="col-md-2">
+                                        <label className="form-label">Base Concentration</label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            value={baseConc}
+                                            onChange={(e) => setBaseConc(e.target.value)}
+                                            placeholder="1e-7"
+                                        />
+                                    </div>
+                                    <div className="col-md-2">
+                                        <label className="form-label">Trials</label>
+                                        <input
+                                            type="number"
+                                            className="form-control"
+                                            value={trials}
+                                            onChange={(e) => setTrials(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="col-md-2">
+                                        <label className="form-label">F Stop</label>
+                                        <input
+                                            type="number"
+                                            step="0.001"
+                                            className="form-control"
+                                            value={fStop}
+                                            onChange={(e) => setFStop(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="col-md-2">
+                                        <label className="form-label">Seed</label>
+                                        <input
+                                            type="number"
+                                            className="form-control"
+                                            value={seed}
+                                            onChange={(e) => setSeed(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <DomainsManager domains={domains} setDomains={setDomains}/>
                     <StrandsManager strands={strands} setStrands={setStrands}
                                     domains={domains}/>
@@ -216,65 +314,21 @@ export default function App() {
                     </div>
 
                     <div className="card">
-                        <h3 className="mb-3">6. Run Design</h3>
-                        <div className="row g-2 mb-3">
-                            <div className="col-md-3">
-                                <label className="form-label small">Job
-                                    Name</label>
-                                <input
-                                    type="text"
-                                    className="form-control form-control-sm"
-                                    value={jobName}
-                                    onChange={(e) => setJobName(e.target.value)}
-                                    placeholder="My design job"
-                                />
-                            </div>
-                            <div className="col-md-2">
-                                <label className="form-label small">Base
-                                    Conc</label>
-                                <input
-                                    type="text"
-                                    className="form-control form-control-sm"
-                                    value={baseConc}
-                                    onChange={(e) => setBaseConc(e.target.value)}
-                                />
-                            </div>
-                            <div className="col-md-2">
-                                <label
-                                    className="form-label small">Trials</label>
-                                <input
-                                    type="number"
-                                    className="form-control form-control-sm"
-                                    value={trials}
-                                    onChange={(e) => setTrials(e.target.value)}
-                                />
-                            </div>
-                            <div className="col-md-2">
-                                <label className="form-label small">F
-                                    Stop</label>
-                                <input
-                                    type="number"
-                                    step="0.001"
-                                    className="form-control form-control-sm"
-                                    value={fStop}
-                                    onChange={(e) => setFStop(e.target.value)}
-                                />
-                            </div>
-                            <div className="col-md-2">
-                                <label className="form-label small">Seed</label>
-                                <input
-                                    type="number"
-                                    className="form-control form-control-sm"
-                                    value={seed}
-                                    onChange={(e) => setSeed(e.target.value)}
-                                />
-                            </div>
-                            <div className="col-md-1 d-flex align-items-end">
-                                <button className="btn btn-success w-100"
-                                        onClick={runDesignJob}>
-                                    <Play size={16}/> Run
-                                </button>
-                            </div>
+                        <h3 className="mb-3">7. Run Design</h3>
+                        <div className="d-flex gap-2">
+                            <button
+                                className="btn btn-success"
+                                onClick={runDesignJob}
+                            >
+                                <Play size={16} className="me-2"/> Run Design
+                            </button>
+
+                            <button
+                                className="btn btn-outline-danger"
+                                onClick={resetDesign}
+                            >
+                                Reset All Inputs
+                            </button>
                         </div>
                     </div>
                 </div>
