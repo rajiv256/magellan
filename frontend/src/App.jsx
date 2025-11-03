@@ -7,6 +7,7 @@ import ConstraintsManager from './components/ConstraintsManager';
 import OffTargetsManager from './components/OffTargetsManager';
 import JobsViewer from './components/JobsViewer';
 import ImportExportManager from './components/ImportExportManager';
+import Analysis from './components/Analysis';
 import './App.css';
 
 const API_URL = 'http://localhost:8000';
@@ -186,6 +187,14 @@ export default function App() {
                         Jobs
                     </button>
                 </li>
+                <li className="nav-item">
+                    <button
+                        className={`nav-link ${activeTab === 'analysis' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('analysis')}
+                    >
+                        Analysis
+                    </button>
+                </li>
             </ul>
 
             {activeTab === 'design' ? (
@@ -332,9 +341,11 @@ export default function App() {
                         </div>
                     </div>
                 </div>
-            ) : (
+            ) : activeTab === 'jobs' ? (
                 <JobsViewer jobs={jobs} refreshJobs={refreshJobs}
                             onCloneJob={cloneJob}/>
+            ) : (
+                <Analysis/>
             )}
         </div>
     );
