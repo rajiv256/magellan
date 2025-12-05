@@ -47,8 +47,8 @@ class AnalysisRunner:
             strands = job_data.get('strands', [])
             temperature = job_data.get('temperature', 37.0)
             material = job_data.get('material', 'dna')
-            sodium = job_data.get('sodium', 1.0)
-            magnesium = job_data.get('magnesium', 0.0)
+            sodium = job_data.get('sodium', 0.05)
+            magnesium = job_data.get('magnesium', 0.01)
             strand_concentrations = job_data.get('strand_concentrations', {})
 
             # Validate inputs

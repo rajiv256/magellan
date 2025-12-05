@@ -149,7 +149,7 @@ async def analyze_heterodimer(request: DimerAnalysisRequest):
 
         # Call Primer3 for heterodimer analysis
         try:
-            result = primer3.bindings.calc_heterodimer(
+            result = primer3.bindings.calc_end_stability(
                 seq1=seq1_dna,
                 seq2=seq2_dna,
                 mv_conc=request.mv_conc,
@@ -209,8 +209,9 @@ async def analyze_homodimer(request: DimerAnalysisRequest):
 
         # Call Primer3 for homodimer analysis
         try:
-            result = primer3.bindings.calc_homodimer(
-                seq=seq1_dna,
+            result = primer3.bindings.calc_end_stability(
+                seq1=seq1_dna,
+                seq2=seq1_dna,
                 mv_conc=request.mv_conc,
                 dv_conc=request.dv_conc,
                 dntp_conc=request.dntp_conc,
